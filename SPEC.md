@@ -6,11 +6,11 @@
 
 ## Integrantes da dupla
 
-- **Aluno 1 - Nome**: <mark>`<preencher>`</mark>
-- **Aluno 1 - Cartão UFRGS**: <mark>`<preencher>`</mark>
+- **Aluno 1 - Nome**: Guilherme de Sousa Cirumbolo
+- **Aluno 1 - Cartão UFRGS**: 330049
 
-- **Aluno 2 - Nome**: <mark>`<preencher>`</mark>
-- **Aluno 2 - Cartão UFRGS**: <mark>`<preencher>`</mark>
+- **Aluno 2 - Nome**: Pedro Marhofer Alles
+- **Aluno 2 - Cartão UFRGS**: 326188
 
 ## Detalhes do que será implementado
 
