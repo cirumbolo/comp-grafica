@@ -14,27 +14,14 @@
 
 ## Detalhes do que será implementado
 
-- **Título do trabalho**: <mark>`<preencher>`</mark>
-- **Parágrafo curto descrevendo o que será implementado**: <mark>`<preencher>`</mark>
+- **Título do trabalho**: Zebra Hunter
+- **Parágrafo curto descrevendo o que será implementado**: Jogo de Caca onde o jogador esta num Safari e usa uma Sniper para matar o animal.
 
 ## Especificação visual
 
 ### Vídeo - Link
 
-> [!IMPORTANT]
-> - Coloque aqui um link para um vídeo que mostre a aplicação gráfica
->   de referência que você vai implementar. **Sua implementação deverá
->   ser o mais parecido possível com o que é mostrado no vídeo (mais
->   detalhes abaixo).**
-> - **Você não pode escolher como referência: (1) algum trabalho realizado
->   por outros alunos desta disciplina, em semestres anteriores. (2) Minecraft.**
-> - Por exemplo, você pode colocar um vídeo de um jogo que você gosta,
->   e seu trabalho final será uma re-implementação do jogo.
-> - O vídeo pode ser um link para YouTube, Google Drive, ou arquivo mp4 dentro
->   do próprio repositório. Mas, garanta que qualquer um tenha
->   permissão de acesso ao vídeo através deste link.
-
-<mark>`<preencher>`</mark>
+> [Demo Video](demo-files/DemoVideo.mp4)
 
 ### Vídeo - Timestamp
 
@@ -43,8 +30,8 @@
 >   será a base de comparação para avaliar se o seu trabalho final
 >   conseguiu ou não reproduzir a referência.
 
-- **Timestamp inicial**: <mark>`<preencher>`</mark>
-- **Timestamp final**: <mark>`<preencher>`</mark>
+- **Timestamp inicial**: 0:20
+- **Timestamp final**: 0:50
 
 ### Imagens
 
@@ -52,7 +39,9 @@
 > - Coloque aqui **três imagens** capturadas do vídeo acima, que você
 >   irá usar como ilustração para as explicações que vêm abaixo.
 
-<mark>`<preencher>`</mark>
+[Zebra](demo-files/animal.png)
+[Ambiente/Mapa](demo-files/map.png)
+[Arma](demo-files/sniper.png)
 
 ## Especificação textual
 
