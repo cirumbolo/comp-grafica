@@ -6,6 +6,10 @@
 # Arquivos fonte C/C++. Inclua nesta lista todos os arquivos que devem
 # ser compilados.
 set(SOURCES
+  src/core/Time.cpp
+  src/input/InputState.cpp
+  src/camera/FpsCamera.cpp
+  src/camera/FreeCamera.cpp
   src/main.cpp
   src/correcao.cpp
   src/textrendering.cpp
@@ -25,6 +29,8 @@ set(CMAKE_CXX_EXTENSIONS        OFF)
 if(WIN32)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   "${PROJECT_SOURCE_DIR}/bin/Debug")
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${PROJECT_SOURCE_DIR}/bin/Release")
+elseif(APPLE)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin/macOS")
 elseif(UNIX)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin/Linux")
 endif()
@@ -58,6 +64,10 @@ endforeach()
 add_executable(${EXECUTABLE_NAME} ${SOURCES})
 
 target_include_directories(${EXECUTABLE_NAME} BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/include)
+
+find_library(MATH_LIBRARY m)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 
 if(WIN32)
 
@@ -101,6 +111,48 @@ if(WIN32)
 
   target_link_libraries(${EXECUTABLE_NAME} ${LIBGLFW} gdi32 opengl32)
 
+elseif(APPLE)
+
+  target_compile_options(${EXECUTABLE_NAME} PRIVATE -Wall -Wno-unused-function -Wno-deprecated-declarations)
+
+  # Add custom target for 'run'
+  add_custom_target(run
+      COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ./main
+      DEPENDS main
+      USES_TERMINAL
+  )
+
+  find_library(GLFW_LIBRARY glfw3 HINTS /opt/homebrew/lib /usr/local/lib)
+  if(NOT GLFW_LIBRARY)
+    find_library(GLFW_LIBRARY glfw HINTS /opt/homebrew/lib /usr/local/lib)
+  endif()
+
+  if(NOT GLFW_LIBRARY)
+    message(FATAL_ERROR "Could not find GLFW on macOS. Install it with Homebrew (brew install glfw) or provide the library path.")
+  endif()
+
+  find_library(COCOA_LIBRARY Cocoa)
+  find_library(OPENGL_FRAMEWORK OpenGL)
+  find_library(IOKIT_LIBRARY IOKit)
+  find_library(COREVIDEO_LIBRARY CoreVideo)
+  find_library(COREFOUNDATION_LIBRARY CoreFoundation)
+
+  if(NOT COCOA_LIBRARY OR NOT OPENGL_FRAMEWORK OR NOT IOKIT_LIBRARY OR NOT COREVIDEO_LIBRARY OR NOT COREFOUNDATION_LIBRARY)
+    message(FATAL_ERROR "Could not resolve macOS system frameworks required by GLFW/OpenGL.")
+  endif()
+
+  target_link_libraries(${EXECUTABLE_NAME}
+    ${GLFW_LIBRARY}
+    ${OPENGL_FRAMEWORK}
+    ${COCOA_LIBRARY}
+    ${IOKIT_LIBRARY}
+    ${COREVIDEO_LIBRARY}
+    ${COREFOUNDATION_LIBRARY}
+    ${CMAKE_DL_LIBS}
+    ${MATH_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+  )
+
 elseif(UNIX)
 
   target_compile_options(${EXECUTABLE_NAME} PRIVATE -Wall -Wno-unused-function)
@@ -114,9 +166,6 @@ elseif(UNIX)
 
   find_package(OpenGL REQUIRED)
   find_package(X11 REQUIRED)
-  find_library(MATH_LIBRARY m)
-  set(THREADS_PREFER_PTHREAD_FLAG ON)
-  find_package(Threads REQUIRED)
   target_link_libraries(${EXECUTABLE_NAME}
     ${CMAKE_DL_LIBS}
     ${MATH_LIBRARY}
