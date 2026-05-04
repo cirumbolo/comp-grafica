@@ -23,6 +23,8 @@
 
 - [Demo Video](demo-files/DemoVideo.mp4)
 
+> Comentário Professor: De onde saiu este vídeo? É um jogo existented?
+
 ### Vídeo - Timestamp
 
 
@@ -48,6 +50,8 @@ O usuário terá controle direto sobre as transformações de rotação da Snipe
 ### Diferentes tipos de câmeras
 Serão implementados dois sistemas de visualização: uma câmera de primeira pessoa (estilo *FPS*) que acompanha a mira da arma para o gameplay, e uma câmera livre (estilo *fly-through*) que permite navegar por todo o mapa do Safari mostrado em `map.png` para fins de exploração e teste.
 
+> Comentário Professor: Não ficou claro a principal diferença entre os dois tipos de câmera. Será implementada a animação da "bala" saindo do cano da arma? Isso seria uma câmera mais interessante (look-at).
+
 ### Instâncias de objetos
 Para compor a fauna do Safari sem sobrecarregar a memória, o modelo da zebra será renderizado utilizando instâncias. Isso significa que o mesmo conjunto de vértices será reaproveitado para desenhar vários animais em posições e orientações distintas, cada um com sua própria *Model Matrix*.
 
@@ -71,3 +75,5 @@ Todas as atualizações de posição, rotação e lógica de jogo serão calcula
 - **Animação Esquelética**: Embora os animais se movam pelo cenário via curvas de Bézier, as malhas podem não apresentar movimento articulado (patas dobrando), limitando-se a translações e rotações do modelo rígido.
 - **Vegetação Estática**: As árvores e arbustos vistos no vídeo de referência podem não sofrer deformações por vento, sendo tratados como objetos rígidos para focar nos requisitos de iluminação e textura.
 - **Complexidade do Terreno**: O mapa pode apresentar uma topografia simplificada em comparação a vídeos cinematográficos, priorizando a performance e a aplicação correta das texturas de solo.
+
+> Comentário Professor: "topografia simplificada" será somente um "plano"? É interessante ter um terreno que não seja plano.
