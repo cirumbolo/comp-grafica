@@ -51,3 +51,16 @@ If you want to change how I interact with you or this project, you can:
 - **Validation:** Always verify changes by building the project.
 - **Surgical Edits:** Use `replace` for precise modifications.
 - **Documentation:** Keep `GEMINI.md` updated with new architectural decisions.
+
+## Git Conventions
+- **Idioma:** As mensagens de commit devem ser sempre em **Português**.
+- **Formato:** Use mensagens simples e diretas, sem corpo ou descrição longa.
+- **Sistema de Tags:** Todo commit deve iniciar com uma tag indicando a autoria:
+  - `[AI]` para commits gerados ou sugeridos pelo assistente.
+  - `[HUMANO]` para commits solicitados ou revisados integralmente por você.
+  - **Ação:** Sempre pergunte qual tag utilizar antes de realizar o commit.
+- **Co-autores:** Todos os commits devem incluir os seguintes co-autores no final da mensagem (pule uma linha antes):
+  ```text
+  Co-authored-by: Guilherme Cirumbolo <gcirumbolo@gmail.com>
+  Co-authored-by: Alles725 <pedroma2001@gmail.com>
+  ```
