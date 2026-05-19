@@ -203,6 +203,17 @@ float g_CameraTheta = 0.0f; // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.0f;   // Ângulo em relação ao eixo Y
 float g_CameraDistance = 3.5f; // Distância da câmera para a origem
 
+// Variáveis para o sistema de câmera livre e FPS
+glm::vec4 g_CameraPosition = glm::vec4(0.0f, 0.0f, 3.5f, 1.0f);
+glm::vec4 g_CameraViewVector = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+bool g_FreeCamera = true; // Começamos em câmera livre
+
+// Variáveis para controle de movimento
+bool g_WPressed = false;
+bool g_APressed = false;
+bool g_SPressed = false;
+bool g_DPressed = false;
+
 // Variáveis que controlam rotação do antebraço
 float g_ForearmAngleZ = 0.0f;
 float g_ForearmAngleX = 0.0f;
@@ -303,19 +314,19 @@ int main(int argc, char* argv[])
     LoadShadersFromFiles();
 
     // Carregamos duas imagens para serem utilizadas como textura
-    LoadTextureImage("../../data/red_brick_diff_1k.jpg");      // TextureImage0
-    LoadTextureImage("../../data/rocky_terrain_02_diff_1k.jpg"); // TextureImage1
+    LoadTextureImage("../../assets/textures/red_brick_diff_1k.jpg");      // TextureImage0
+    LoadTextureImage("../../assets/textures/rocky_terrain_02_diff_1k.jpg"); // TextureImage1
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
-    ObjModel spheremodel("../../data/sphere.obj");
+    ObjModel spheremodel("../../assets/models/sphere.obj");
     ComputeNormals(&spheremodel);
     BuildTrianglesAndAddToVirtualScene(&spheremodel);
 
-    ObjModel bunnymodel("../../data/bunny.obj");
+    ObjModel bunnymodel("../../assets/models/bunny.obj");
     ComputeNormals(&bunnymodel);
     BuildTrianglesAndAddToVirtualScene(&bunnymodel);
 
-    ObjModel planemodel("../../data/plane.obj");
+    ObjModel planemodel("../../assets/models/plane.obj");
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
 
@@ -335,6 +346,8 @@ int main(int argc, char* argv[])
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
+
+    float prev_time = (float)glfwGetTime();
 
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -361,25 +374,57 @@ int main(int argc, char* argv[])
         // os shaders de vértice e fragmentos).
         glUseProgram(g_GpuProgramID);
 
-        // Computamos a posição da câmera utilizando coordenadas esféricas.  As
-        // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
-        // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
-        // e ScrollCallback().
-        float r = g_CameraDistance;
-        float y = r*sin(g_CameraPhi);
-        float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
-        float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
+        // Computamos o tempo que passou desde o último quadro
+        float current_time = (float)glfwGetTime();
+        float deltaTime = current_time - prev_time;
+        prev_time = current_time;
 
-        // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
-        // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
-        glm::vec4 camera_position_c  = glm::vec4(x,y,z,1.0f); // Ponto "c", centro da câmera
-        glm::vec4 camera_lookat_l    = glm::vec4(0.0f,0.0f,0.0f,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
-        glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
-        glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
+        // Computamos a direção do olhar da câmera (view vector)
+        // a partir dos ângulos de Euler g_CameraTheta e g_CameraPhi.
+        float vy = sin(g_CameraPhi);
+        float vz = cos(g_CameraPhi)*cos(g_CameraTheta);
+        float vx = cos(g_CameraPhi)*sin(g_CameraTheta);
+        g_CameraViewVector = glm::vec4(vx, vy, vz, 0.0f);
 
-        // Computamos a matriz "View" utilizando os parâmetros da câmera para
-        // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
-        glm::mat4 view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
+        // Vetor "up" fixado para apontar para o "céu" (eixo Y global)
+        glm::vec4 camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+
+        // Vetores da base da câmera
+        glm::vec4 w = -g_CameraViewVector;
+        glm::vec4 u = crossproduct(camera_up_vector, w);
+        u = u / norm(u);
+
+        // Velocidade de movimentação da câmera
+        float speed = 2.0f;
+
+        // Atualizamos a posição da câmera baseada nas teclas WASD
+        if (g_FreeCamera)
+        {
+            // Câmera livre: move em todas as direções
+            if (g_WPressed) g_CameraPosition -= w * speed * deltaTime;
+            if (g_SPressed) g_CameraPosition += w * speed * deltaTime;
+            if (g_APressed) g_CameraPosition -= u * speed * deltaTime;
+            if (g_DPressed) g_CameraPosition += u * speed * deltaTime;
+        }
+        else
+        {
+            // Câmera FPS: move apenas no plano XZ
+            glm::vec4 w_xz = glm::vec4(w.x, 0.0f, w.z, 0.0f);
+            w_xz = w_xz / norm(w_xz);
+            glm::vec4 u_xz = glm::vec4(u.x, 0.0f, u.z, 0.0f);
+            u_xz = u_xz / norm(u_xz);
+
+            if (g_WPressed) g_CameraPosition -= w_xz * speed * deltaTime;
+            if (g_SPressed) g_CameraPosition += w_xz * speed * deltaTime;
+            if (g_APressed) g_CameraPosition -= u_xz * speed * deltaTime;
+            if (g_DPressed) g_CameraPosition += u_xz * speed * deltaTime;
+            
+            // Altura fixa em FPS (ex: 0.0f)
+            g_CameraPosition.y = 0.0f;
+        }
+
+        // Matriz "View"
+        glm::mat4 view = Matrix_Camera_View(g_CameraPosition, g_CameraViewVector, camera_up_vector);
 
         // Agora computamos a matriz de Projeção.
         glm::mat4 projection;
@@ -583,8 +628,8 @@ void LoadShadersFromFiles()
     //       |
     //       o-- shader_fragment.glsl
     //
-    GLuint vertex_shader_id = LoadShader_Vertex("../../src/shader_vertex.glsl");
-    GLuint fragment_shader_id = LoadShader_Fragment("../../src/shader_fragment.glsl");
+    GLuint vertex_shader_id = LoadShader_Vertex("../../assets/shaders/shader_vertex.glsl");
+    GLuint fragment_shader_id = LoadShader_Fragment("../../assets/shaders/shader_fragment.glsl");
 
     // Deletamos o programa de GPU anterior, caso ele exista.
     if ( g_GpuProgramID != 0 )
@@ -1135,12 +1180,12 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     // parâmetros que definem a posição da câmera dentro da cena virtual.
     // Assim, temos que o usuário consegue controlar a câmera.
 
+    // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
+    float dx = xpos - g_LastCursorPosX;
+    float dy = ypos - g_LastCursorPosY;
+
     if (g_LeftMouseButtonPressed)
     {
-        // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
-        float dx = xpos - g_LastCursorPosX;
-        float dy = ypos - g_LastCursorPosY;
-    
         // Atualizamos parâmetros da câmera com os deslocamentos
         g_CameraTheta -= 0.01f*dx;
         g_CameraPhi   += 0.01f*dy;
@@ -1154,12 +1199,12 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     
         if (g_CameraPhi < phimin)
             g_CameraPhi = phimin;
-    
-        // Atualizamos as variáveis globais para armazenar a posição atual do
-        // cursor como sendo a última posição conhecida do cursor.
-        g_LastCursorPosX = xpos;
-        g_LastCursorPosY = ypos;
     }
+
+    // Atualizamos as variáveis globais para armazenar a posição atual do
+    // cursor como sendo a última posição conhecida do cursor.
+    g_LastCursorPosX = xpos;
+    g_LastCursorPosY = ypos;
 
     if (g_RightMouseButtonPressed)
     {
@@ -1231,13 +1276,21 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
 
-    // O código abaixo implementa a seguinte lógica:
-    //   Se apertar tecla X       então g_AngleX += delta;
-    //   Se apertar tecla shift+X então g_AngleX -= delta;
-    //   Se apertar tecla Y       então g_AngleY += delta;
-    //   Se apertar tecla shift+Y então g_AngleY -= delta;
-    //   Se apertar tecla Z       então g_AngleZ += delta;
-    //   Se apertar tecla shift+Z então g_AngleZ -= delta;
+    // Controle de movimentação com WASD
+    if (key == GLFW_KEY_W && action == GLFW_PRESS) g_WPressed = true;
+    if (key == GLFW_KEY_W && action == GLFW_RELEASE) g_WPressed = false;
+    if (key == GLFW_KEY_S && action == GLFW_PRESS) g_SPressed = true;
+    if (key == GLFW_KEY_S && action == GLFW_RELEASE) g_SPressed = false;
+    if (key == GLFW_KEY_A && action == GLFW_PRESS) g_APressed = true;
+    if (key == GLFW_KEY_A && action == GLFW_RELEASE) g_APressed = false;
+    if (key == GLFW_KEY_D && action == GLFW_PRESS) g_DPressed = true;
+    if (key == GLFW_KEY_D && action == GLFW_RELEASE) g_DPressed = false;
+
+    // Alternar entre câmera livre e FPS com a tecla C
+    if (key == GLFW_KEY_C && action == GLFW_PRESS)
+    {
+        g_FreeCamera = !g_FreeCamera;
+    }
 
     float delta = 3.141592 / 16; // 22.5 graus, em radianos.
 
