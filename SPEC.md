@@ -24,6 +24,7 @@
 - [Demo Video](demo-files/DemoVideo.mp4)
 
 > Comentário Professor: De onde saiu este vídeo? É um jogo existented?
+> Resposta: Jogo existente que tiramos como exemplo
 
 ### Vídeo - Timestamp
 
@@ -51,6 +52,10 @@ O usuário terá controle direto sobre as transformações de rotação da Snipe
 Serão implementados dois sistemas de visualização: uma câmera de primeira pessoa (estilo *FPS*) que acompanha a mira da arma para o gameplay, e uma câmera livre (estilo *fly-through*) que permite navegar por todo o mapa do Safari mostrado em `map.png` para fins de exploração e teste.
 
 > Comentário Professor: Não ficou claro a principal diferença entre os dois tipos de câmera. Será implementada a animação da "bala" saindo do cano da arma? Isso seria uma câmera mais interessante (look-at).
+> Resposta: 
+> - **Câmera FPS**: Movimentação restrita ao plano horizontal (XZ), simulando o deslocamento por terra do caçador.
+> - **Câmera Look-at fixa**: A câmera permanece no jogador, mas "olha" para a bala enquanto ela viaja.
+
 
 ### Instâncias de objetos
 Para compor a fauna do Safari sem sobrecarregar a memória, o modelo da zebra será renderizado utilizando instâncias. Isso significa que o mesmo conjunto de vértices será reaproveitado para desenhar vários animais em posições e orientações distintas, cada um com sua própria *Model Matrix*.
@@ -77,3 +82,5 @@ Todas as atualizações de posição, rotação e lógica de jogo serão calcula
 - **Complexidade do Terreno**: O mapa pode apresentar uma topografia simplificada em comparação a vídeos cinematográficos, priorizando a performance e a aplicação correta das texturas de solo.
 
 > Comentário Professor: "topografia simplificada" será somente um "plano"? É interessante ter um terreno que não seja plano.
+> Resposta: Planejamos implementar um terreno 3D com relevo.
+

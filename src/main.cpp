@@ -203,10 +203,19 @@ float g_CameraTheta = 0.0f; // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.0f;   // Ângulo em relação ao eixo Y
 float g_CameraDistance = 3.5f; // Distância da câmera para a origem
 
-// Variáveis para o sistema de câmera livre e FPS
+// Estados do jogo
+enum GameState { PLAYING, BULLET_CAM };
+GameState g_CurrentGameState = PLAYING;
+
+// Variáveis para a bala e câmera cinematográfica
+glm::vec4 g_BulletPosition;
+glm::vec4 g_BulletDirection;
+glm::vec4 g_BulletTarget;
+float g_BulletSpeed = 20.0f;
+
+// Variáveis para o sistema de câmera FPS
 glm::vec4 g_CameraPosition = glm::vec4(0.0f, 0.0f, 3.5f, 1.0f);
 glm::vec4 g_CameraViewVector = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-bool g_FreeCamera = true; // Começamos em câmera livre
 
 // Variáveis para controle de movimento
 bool g_WPressed = false;
@@ -313,18 +322,19 @@ int main(int argc, char* argv[])
     //
     LoadShadersFromFiles();
 
-    // Carregamos duas imagens para serem utilizadas como textura
-    LoadTextureImage("../../assets/textures/red_brick_diff_1k.jpg");      // TextureImage0
-    LoadTextureImage("../../assets/textures/rocky_terrain_02_diff_1k.jpg"); // TextureImage1
+    // Carregamos as imagens para serem utilizadas como textura
+    LoadTextureImage("../../assets/textures/animal.png");  // TextureImage0 (ZEBRA)
+    LoadTextureImage("../../assets/textures/map.png");     // TextureImage1 (MAP)
+    LoadTextureImage("../../assets/textures/sniper.png");  // TextureImage2 (SNIPER)
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
-    ObjModel spheremodel("../../assets/models/sphere.obj");
-    ComputeNormals(&spheremodel);
-    BuildTrianglesAndAddToVirtualScene(&spheremodel);
+    ObjModel zebramodel("../../assets/models/ZEBRA.OBJ");
+    ComputeNormals(&zebramodel);
+    BuildTrianglesAndAddToVirtualScene(&zebramodel);
 
-    ObjModel bunnymodel("../../assets/models/bunny.obj");
-    ComputeNormals(&bunnymodel);
-    BuildTrianglesAndAddToVirtualScene(&bunnymodel);
+    ObjModel snipermodel("../../assets/models/Sniper_rifle.obj");
+    ComputeNormals(&snipermodel);
+    BuildTrianglesAndAddToVirtualScene(&snipermodel);
 
     ObjModel planemodel("../../assets/models/plane.obj");
     ComputeNormals(&planemodel);
@@ -388,31 +398,29 @@ int main(int argc, char* argv[])
 
         // Vetor "up" fixado para apontar para o "céu" (eixo Y global)
         glm::vec4 camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+        glm::mat4 view;
 
-        // Vetores da base da câmera
-        glm::vec4 w = -g_CameraViewVector;
-        glm::vec4 u = crossproduct(camera_up_vector, w);
-        u = u / norm(u);
-
-        // Velocidade de movimentação da câmera
-        float speed = 2.0f;
-
-        // Atualizamos a posição da câmera baseada nas teclas WASD
-        if (g_FreeCamera)
+        if (g_CurrentGameState == PLAYING)
         {
-            // Câmera livre: move em todas as direções
-            if (g_WPressed) g_CameraPosition -= w * speed * deltaTime;
-            if (g_SPressed) g_CameraPosition += w * speed * deltaTime;
-            if (g_APressed) g_CameraPosition -= u * speed * deltaTime;
-            if (g_DPressed) g_CameraPosition += u * speed * deltaTime;
-        }
-        else
-        {
+            // Computamos a direção do olhar da câmera (view vector)
+            float vy = sin(g_CameraPhi);
+            float vz = cos(g_CameraPhi)*cos(g_CameraTheta);
+            float vx = cos(g_CameraPhi)*sin(g_CameraTheta);
+            g_CameraViewVector = glm::vec4(vx, vy, vz, 0.0f);
+
+            // Vetores da base da câmera
+            glm::vec4 w = -g_CameraViewVector;
+            glm::vec4 u = crossproduct(camera_up_vector, w);
+            u = u / norm(u);
+
+            // Velocidade de movimentação da câmera
+            float speed = 2.0f;
+
             // Câmera FPS: move apenas no plano XZ
             glm::vec4 w_xz = glm::vec4(w.x, 0.0f, w.z, 0.0f);
-            w_xz = w_xz / norm(w_xz);
+            if (norm(w_xz) > 0.0f) w_xz = w_xz / norm(w_xz);
             glm::vec4 u_xz = glm::vec4(u.x, 0.0f, u.z, 0.0f);
-            u_xz = u_xz / norm(u_xz);
+            if (norm(u_xz) > 0.0f) u_xz = u_xz / norm(u_xz);
 
             if (g_WPressed) g_CameraPosition -= w_xz * speed * deltaTime;
             if (g_SPressed) g_CameraPosition += w_xz * speed * deltaTime;
@@ -421,75 +429,80 @@ int main(int argc, char* argv[])
             
             // Altura fixa em FPS (ex: 0.0f)
             g_CameraPosition.y = 0.0f;
-        }
 
-        // Matriz "View"
-        glm::mat4 view = Matrix_Camera_View(g_CameraPosition, g_CameraViewVector, camera_up_vector);
+            view = Matrix_Camera_View(g_CameraPosition, g_CameraViewVector, camera_up_vector);
+        }
+        else if (g_CurrentGameState == BULLET_CAM)
+        {
+            // Atualizamos a posição da bala
+            g_BulletPosition += g_BulletDirection * g_BulletSpeed * deltaTime;
+
+            // Câmera look-at atrás da bala, olhando para o alvo
+            glm::vec4 cam_pos = g_BulletPosition - g_BulletDirection * 2.0f + glm::vec4(0.0f, 0.5f, 0.0f, 0.0f);
+            glm::vec4 view_vec = g_BulletTarget - cam_pos;
+            view = Matrix_Camera_View(cam_pos, view_vec, camera_up_vector);
+
+            // Verificar impacto (distância próxima ao alvo)
+            if (norm(g_BulletTarget - g_BulletPosition) < 0.5f)
+            {
+                g_CurrentGameState = PLAYING;
+            }
+        }
 
         // Agora computamos a matriz de Projeção.
         glm::mat4 projection;
+        float nearplane = -0.1f;
+        float farplane  = -100.0f; // Aumentado para ver o mapa
+        float field_of_view = 3.141592 / 3.0f;
+        projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
 
-        // Note que, no sistema de coordenadas da câmera, os planos near e far
-        // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
-        float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -10.0f; // Posição do "far plane"
-
-        if (g_UsePerspectiveProjection)
-        {
-            // Projeção Perspectiva.
-            // Para definição do field of view (FOV), veja slides 205-215 do documento Aula_09_Projecoes.pdf.
-            float field_of_view = 3.141592 / 3.0f;
-            projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
-        }
-        else
-        {
-            // Projeção Ortográfica.
-            // Para definição dos valores l, r, b, t ("left", "right", "bottom", "top"),
-            // PARA PROJEÇÃO ORTOGRÁFICA veja slides 219-224 do documento Aula_09_Projecoes.pdf.
-            // Para simular um "zoom" ortográfico, computamos o valor de "t"
-            // utilizando a variável g_CameraDistance.
-            float t = 1.5f*g_CameraDistance/2.5f;
-            float b = -t;
-            float r = t*g_ScreenRatio;
-            float l = -r;
-            projection = Matrix_Orthographic(l, r, b, t, nearplane, farplane);
-        }
-
-        glm::mat4 model = Matrix_Identity(); // Transformação identidade de modelagem
+        glm::mat4 model = Matrix_Identity();
 
         // Enviamos as matrizes "view" e "projection" para a placa de vídeo
-        // (GPU). Veja o arquivo "shader_vertex.glsl", onde estas são
-        // efetivamente aplicadas em todos os pontos.
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-        #define SPHERE 0
-        #define BUNNY  1
-        #define PLANE  2
+        #define ZEBRA  0
+        #define SNIPER 1
+        #define MAP    2
+        #define BULLET 3
 
-        // Desenhamos o modelo da esfera
-                float elapsed_seconds = GameTime::TotalSeconds();
-
-                model = Matrix_Translate(-1.0f,0.0f,0.0f)
-              * Matrix_Rotate_Z(0.6f)
-              * Matrix_Rotate_X(0.2f)
-              * Matrix_Rotate_Y(g_AngleY + elapsed_seconds * 0.1f);
+        // Desenhamos a zebra
+        glm::vec4 zebra_pos = glm::vec4(-5.0f, 0.0f, -5.0f, 1.0f);
+        model = Matrix_Translate(zebra_pos.x, zebra_pos.y, zebra_pos.z)
+              * Matrix_Rotate_Y(3.14f/2.0f); // Virada de lado
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, SPHERE);
-        DrawVirtualObject("the_sphere");
+        glUniform1i(g_object_id_uniform, ZEBRA);
+        DrawVirtualObject("Zebra");
 
-        // Desenhamos o modelo do coelho
-        model = Matrix_Translate(1.0f,0.0f,0.0f)
-              * Matrix_Rotate_X(g_AngleX + elapsed_seconds * 0.1f);
+        // Desenhamos o mapa (plano)
+        model = Matrix_Translate(0.0f,-1.0f,0.0f) * Matrix_Scale(50.0f, 1.0f, 50.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, BUNNY);
-        DrawVirtualObject("the_bunny");
-
-        // Desenhamos o plano do chão
-        model = Matrix_Translate(0.0f,-1.1f,0.0f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, PLANE);
+        glUniform1i(g_object_id_uniform, MAP);
         DrawVirtualObject("the_plane");
+
+        if (g_CurrentGameState == PLAYING)
+        {
+            // Desenhamos a sniper presa à câmera
+            // Posicionamos a arma no "espaço da câmera" e depois transformamos para o "mundo"
+            // usando a inversa da matriz view.
+            glm::mat4 weapon_local = Matrix_Translate(0.4f, -0.4f, -0.8f) 
+                                   * Matrix_Rotate_Y(3.14f) // Olhando para frente
+                                   * Matrix_Scale(0.1f, 0.1f, 0.1f);
+            model = inverse(view) * weapon_local;
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, SNIPER);
+            DrawVirtualObject("Sniper_rifle");
+        }
+        else if (g_CurrentGameState == BULLET_CAM)
+        {
+            // Desenhamos a bala
+            model = Matrix_Translate(g_BulletPosition.x, g_BulletPosition.y, g_BulletPosition.z)
+                  * Matrix_Scale(0.05f, 0.05f, 0.05f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, BULLET);
+            DrawVirtualObject("the_sphere"); // Usando esfera pequena como bala
+        }
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
@@ -1113,6 +1126,17 @@ void FramebufferSizeCallback(GLFWwindow* window, int width, int height)
 // de tempo. Utilizadas no callback CursorPosCallback() abaixo.
 double g_LastCursorPosX, g_LastCursorPosY;
 
+// Função para teste de intersecção Raio-Esfera
+bool RaySphereIntersection(glm::vec4 ray_origin, glm::vec4 ray_direction, glm::vec4 sphere_center, float sphere_radius)
+{
+    glm::vec4 oc = ray_origin - sphere_center;
+    float a = dot(ray_direction, ray_direction);
+    float b = 2.0f * dot(oc, ray_direction);
+    float c = dot(oc, oc) - sphere_radius * sphere_radius;
+    float discriminant = b * b - 4 * a * c;
+    return (discriminant > 0);
+}
+
 // Função callback chamada sempre que o usuário aperta algum dos botões do mouse
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
@@ -1120,51 +1144,37 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
     {
-        // Se o usuário pressionou o botão esquerdo do mouse, guardamos a
-        // posição atual do cursor nas variáveis g_LastCursorPosX e
-        // g_LastCursorPosY.  Também, setamos a variável
-        // g_LeftMouseButtonPressed como true, para saber que o usuário está
-        // com o botão esquerdo pressionado.
+        if (g_CurrentGameState == PLAYING)
+        {
+            // Lógica de Tiro
+            glm::vec4 zebra_pos = glm::vec4(-5.0f, 0.0f, -5.0f, 1.0f);
+            float zebra_radius = 1.0f; // Aproximação por esfera
+
+            if (RaySphereIntersection(g_CameraPosition, g_CameraViewVector, zebra_pos, zebra_radius))
+            {
+                // Acertou! Iniciar Bullet Cam
+                g_CurrentGameState = BULLET_CAM;
+                g_BulletPosition = g_CameraPosition;
+                g_BulletDirection = g_CameraViewVector;
+                g_BulletTarget = zebra_pos;
+            }
+        }
+        
         glfwGetCursorPos(window, &g_LastCursorPosX, &g_LastCursorPosY);
         g_LeftMouseButtonPressed = true;
     }
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
     {
-        // Quando o usuário soltar o botão esquerdo do mouse, atualizamos a
-        // variável abaixo para false.
         g_LeftMouseButtonPressed = false;
     }
     if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
     {
-        // Se o usuário pressionou o botão esquerdo do mouse, guardamos a
-        // posição atual do cursor nas variáveis g_LastCursorPosX e
-        // g_LastCursorPosY.  Também, setamos a variável
-        // g_RightMouseButtonPressed como true, para saber que o usuário está
-        // com o botão esquerdo pressionado.
         glfwGetCursorPos(window, &g_LastCursorPosX, &g_LastCursorPosY);
         g_RightMouseButtonPressed = true;
     }
     if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
     {
-        // Quando o usuário soltar o botão esquerdo do mouse, atualizamos a
-        // variável abaixo para false.
         g_RightMouseButtonPressed = false;
-    }
-    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS)
-    {
-        // Se o usuário pressionou o botão esquerdo do mouse, guardamos a
-        // posição atual do cursor nas variáveis g_LastCursorPosX e
-        // g_LastCursorPosY.  Também, setamos a variável
-        // g_MiddleMouseButtonPressed como true, para saber que o usuário está
-        // com o botão esquerdo pressionado.
-        glfwGetCursorPos(window, &g_LastCursorPosX, &g_LastCursorPosY);
-        g_MiddleMouseButtonPressed = true;
-    }
-    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_RELEASE)
-    {
-        // Quando o usuário soltar o botão esquerdo do mouse, atualizamos a
-        // variável abaixo para false.
-        g_MiddleMouseButtonPressed = false;
     }
 }
 
@@ -1286,59 +1296,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_D && action == GLFW_PRESS) g_DPressed = true;
     if (key == GLFW_KEY_D && action == GLFW_RELEASE) g_DPressed = false;
 
-    // Alternar entre câmera livre e FPS com a tecla C
-    if (key == GLFW_KEY_C && action == GLFW_PRESS)
-    {
-        g_FreeCamera = !g_FreeCamera;
-    }
-
-    float delta = 3.141592 / 16; // 22.5 graus, em radianos.
-
-    if (key == GLFW_KEY_X && action == GLFW_PRESS)
-    {
-        g_AngleX += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-    }
-
-    if (key == GLFW_KEY_Y && action == GLFW_PRESS)
-    {
-        g_AngleY += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-    }
-    if (key == GLFW_KEY_Z && action == GLFW_PRESS)
-    {
-        g_AngleZ += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-    }
-
-    // Se o usuário apertar a tecla espaço, resetamos os ângulos de Euler para zero.
-    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-    {
-        g_AngleX = 0.0f;
-        g_AngleY = 0.0f;
-        g_AngleZ = 0.0f;
-        g_ForearmAngleX = 0.0f;
-        g_ForearmAngleZ = 0.0f;
-        g_TorsoPositionX = 0.0f;
-        g_TorsoPositionY = 0.0f;
-    }
-
-    // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
-    if (key == GLFW_KEY_P && action == GLFW_PRESS)
-    {
-        g_UsePerspectiveProjection = true;
-    }
-
-    // Se o usuário apertar a tecla O, utilizamos projeção ortográfica.
-    if (key == GLFW_KEY_O && action == GLFW_PRESS)
-    {
-        g_UsePerspectiveProjection = false;
-    }
-
-    // Se o usuário apertar a tecla H, fazemos um "toggle" do texto informativo mostrado na tela.
-    if (key == GLFW_KEY_H && action == GLFW_PRESS)
-    {
-        g_ShowInfoText = !g_ShowInfoText;
-    }
-
-    // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".
+    // Se o usuário apertar a tecla R, recarregamos os shaders
     if (key == GLFW_KEY_R && action == GLFW_PRESS)
     {
         LoadShadersFromFiles();
