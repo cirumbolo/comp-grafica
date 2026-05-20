@@ -127,6 +127,10 @@ void LoadShader(const char* filename, GLuint shader_id); // Função utilizada p
 GLuint CreateGpuProgram(GLuint vertex_shader_id, GLuint fragment_shader_id); // Cria um programa de GPU
 void PrintObjModelInfo(ObjModel*); // Função para debugging
 
+// Declaração de funções para detecção de colisão
+bool CheckPlayerCollision(glm::vec4 next_pos);
+bool RaySphereIntersection(glm::vec4 ray_origin, glm::vec4 ray_direction, glm::vec4 sphere_center, float sphere_radius);
+
 // Declaração de funções auxiliares para renderizar texto dentro da janela
 // OpenGL. Estas funções estão definidas no arquivo "textrendering.cpp".
 void TextRendering_Init();
