@@ -19,9 +19,9 @@ uniform mat4 view;
 uniform mat4 projection;
 
 // Identificador que define qual objeto está sendo desenhado no momento
-#define SPHERE 0
-#define BUNNY  1
-#define PLANE  2
+#define ZEBRA  0
+#define SNIPER 1
+#define MAP    2
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -29,9 +29,9 @@ uniform vec4 bbox_min;
 uniform vec4 bbox_max;
 
 // Variáveis para acesso das imagens de textura
-uniform sampler2D TextureImage0;
-uniform sampler2D TextureImage1;
-uniform sampler2D TextureImage2;
+uniform sampler2D TextureImage0; // Zebra
+uniform sampler2D TextureImage1; // Map
+uniform sampler2D TextureImage2; // Sniper
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -49,9 +49,7 @@ void main()
 
     // O fragmento atual é coberto por um ponto que percente à superfície de um
     // dos objetos virtuais da cena. Este ponto, p, possui uma posição no
-    // sistema de coordenadas global (World coordinates). Esta posição é obtida
-    // através da interpolação, feita pelo rasterizador, da posição de cada
-    // vértice.
+    // sistema de coordenadas global (World coordinates).
     vec4 p = position_world;
 
     // Normal do fragmento atual, interpolada pelo rasterizador a partir das
@@ -59,86 +57,70 @@ void main()
     vec4 n = normalize(normal);
 
     // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-    vec4 l = normalize(vec4(1.0,1.0,0.0,0.0));
+    // Simulando uma luz direcional (como o Sol).
+    vec4 l = normalize(vec4(1.0, 1.0, 0.5, 0.0));
 
     // Vetor que define o sentido da câmera em relação ao ponto atual.
     vec4 v = normalize(camera_position - p);
+
+    // Vetor de reflexão especular
+    vec4 r = -l + 2.0 * n * dot(n, l);
 
     // Coordenadas de textura U e V
     float U = 0.0;
     float V = 0.0;
 
-	// Coeficiente de refletância difusa
-	vec3 Kd0;
+    // Coeficientes de refletância
+    vec3 Kd; // Difusa
+    vec3 Ks = vec3(0.0); // Especular
+    vec3 Ka; // Ambiente
+    float q = 1.0; // Expoente especular
 
-    if ( object_id == SPHERE )
+    if ( object_id == ZEBRA )
     {
-        // PREENCHA AQUI as coordenadas de textura da esfera, computadas com
-        // projeção esférica EM COORDENADAS DO MODELO. Utilize como referência
-        // o slides 134-150 do documento Aula_20_Mapeamento_de_Texturas.pdf.
-        // A esfera que define a projeção deve estar centrada na posição
-        // "bbox_center" definida abaixo.
-
-        // Você deve utilizar:
-        //   função 'length( )' : comprimento Euclidiano de um vetor
-        //   função 'atan( , )' : arcotangente. Veja https://en.wikipedia.org/wiki/Atan2.
-        //   função 'asin( )'   : seno inverso.
-        //   constante M_PI
-        //   variável position_model
-
-        vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
-        vec4 d = position_model - bbox_center;
-
-        float rho   = length(d);
-        float theta = atan(d.x,d.z);
-        float phi   = asin(d.y / rho);
-
-        U = (theta + M_PI) / 2.0 / M_PI;
-        V = (phi + M_PI_2) / M_PI;
-
-		// Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
-		Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
-    }
-    else if ( object_id == BUNNY )
-    {
-        // PREENCHA AQUI as coordenadas de textura do coelho, computadas com
-        // projeção planar XY em COORDENADAS DO MODELO. Utilize como referência
-        // o slides 99-104 do documento Aula_20_Mapeamento_de_Texturas.pdf,
-        // e também use as variáveis min*/max* definidas abaixo para normalizar
-        // as coordenadas de textura U e V dentro do intervalo [0,1]. Para
-        // tanto, veja por exemplo o mapeamento da variável 'p_v' utilizando
-        // 'h' no slides 158-160 do documento Aula_20_Mapeamento_de_Texturas.pdf.
-        // Veja também a Questão 4 do Questionário 4 no Moodle.
-
-        float minx = bbox_min.x;
-        float maxx = bbox_max.x;
-
-        float miny = bbox_min.y;
-        float maxy = bbox_max.y;
-
-        float minz = bbox_min.z;
-        float maxz = bbox_max.z;
-
-        U = (position_model.x - minx) / (maxx - minx);
-        V = (position_model.y - miny) / (maxy - miny);
-
-		// Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
-		Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
-    }
-    else if ( object_id == PLANE )
-    {
-        // Coordenadas de textura do plano, obtidas do arquivo OBJ.
         U = texcoords.x;
         V = texcoords.y;
-
-		// Obtemos a refletância difusa a partir da leitura da imagem TextureImage1
-		Kd0 = texture(TextureImage1, vec2(U,V)).rgb;
+        Kd = texture(TextureImage0, vec2(U,V)).rgb;
+        Ks = vec3(0.2, 0.2, 0.2);
+        q = 20.0;
+    }
+    else if ( object_id == SNIPER )
+    {
+        U = texcoords.x;
+        V = texcoords.y;
+        Kd = texture(TextureImage2, vec2(U,V)).rgb;
+        Ks = vec3(0.8, 0.8, 0.8); // Metal brilha mais
+        q = 80.0;
+    }
+    else if ( object_id == MAP )
+    {
+        U = texcoords.x;
+        V = texcoords.y;
+        Kd = texture(TextureImage1, vec2(U,V)).rgb;
+        Ks = vec3(0.0); // Chão não brilha
+        q = 1.0;
+    }
+    else if ( object_id == 3 ) // BULLET
+    {
+        Kd = vec3(1.0, 0.8, 0.0); // Amarelo/Dourado
+        Ks = vec3(1.0, 1.0, 1.0);
+        q = 100.0;
     }
 
-    // Equação de Iluminação
-    float lambert = max(0,dot(n,l));
+    // Espectro da fonte de iluminação
+    vec3 I = vec3(1.0, 1.0, 1.0); // Luz branca
+    vec3 Ia = vec3(0.2, 0.2, 0.2); // Luz ambiente
 
-    color.rgb = Kd0 * (lambert + 0.01);
+    // Termo ambiente
+    vec3 ambient_term = Kd * Ia;
+
+    // Termo difuso (Lambert)
+    vec3 diffuse_term = Kd * I * max(0.0, dot(n, l));
+
+    // Termo especular (Phong)
+    vec3 specular_term = Ks * I * pow(max(0.0, dot(r, v)), q);
+
+    color.rgb = ambient_term + diffuse_term + specular_term;
 
     // NOTE: Se você quiser fazer o rendering de objetos transparentes, é
     // necessário:
