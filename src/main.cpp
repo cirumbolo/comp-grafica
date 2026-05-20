@@ -363,9 +363,11 @@ int main(int argc, char* argv[])
     LoadShadersFromFiles();
 
     // Carregamos as imagens para serem utilizadas como textura
-    LoadTextureImage("../../assets/textures/animal.png");  // TextureImage0 (ZEBRA)
-    LoadTextureImage("../../assets/textures/map.png");     // TextureImage1 (MAP)
-    LoadTextureImage("../../assets/textures/sniper.png");  // TextureImage2 (SNIPER)
+    LoadTextureImage("../../assets/textures/animal.png");                     // TextureImage0 (ZEBRA)
+    LoadTextureImage("../../assets/textures/map.png");                        // TextureImage1 (MAP)
+    LoadTextureImage("../../assets/textures/4K_Sniper_rifle_Base_Color.png"); // TextureImage2 (SNIPER BODY)
+    LoadTextureImage("../../assets/textures/2K_Sniper_rifle_scope_Base_Color.png"); // TextureImage3 (SNIPER SCOPE)
+    LoadTextureImage("../../assets/textures/1K_Sniper_rifle_ammo_Base_Color.png");  // TextureImage4 (SNIPER AMMO)
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel zebramodel("../../assets/models/ZEBRA.OBJ");
