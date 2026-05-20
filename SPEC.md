@@ -49,12 +49,12 @@ O jogo utilizará modelos geométricos carregados a partir de arquivos externos 
 O usuário terá controle direto sobre as transformações de rotação da Sniper através do movimento do mouse, permitindo a mira. Além disso, o deslocamento pelo cenário (translação) será controlado pelas teclas de navegação, alterando a posição do jogador no mundo 3D.
 
 ### Diferentes tipos de câmeras
-Serão implementados dois sistemas de visualização: uma câmera de primeira pessoa (estilo *FPS*) que acompanha a mira da arma para o gameplay, e uma câmera livre (estilo *fly-through*) que permite navegar por todo o mapa do Safari mostrado em `map.png` para fins de exploração e teste.
+Serão implementados dois sistemas de visualização: uma câmera de primeira pessoa (estilo *FPS*) que acompanha a mira da arma para o gameplay, e uma câmera cinematográfica do tipo "Bullet Cam" (estilo *look-at*).
 
 > Comentário Professor: Não ficou claro a principal diferença entre os dois tipos de câmera. Será implementada a animação da "bala" saindo do cano da arma? Isso seria uma câmera mais interessante (look-at).
 > Resposta: 
-> - **Câmera FPS**: Movimentação restrita ao plano horizontal (XZ), simulando o deslocamento por terra do caçador.
-> - **Câmera Look-at fixa**: A câmera permanece no jogador, mas "olha" para a bala enquanto ela viaja.
+> - **Câmera FPS**: Movimentação restrita ao plano horizontal (XZ), simulando o deslocamento por terra do caçador. Possui efeito de zoom (mira telescópica) ao utilizar o botão direito do mouse.
+> - **Câmera Bullet Cam**: Ativada automaticamente após um disparo bem-sucedido. A câmera se desprende do jogador e acompanha o projétil em alta velocidade, focando no alvo até o impacto, proporcionando um efeito dramático de confirmação de acerto.
 
 
 ### Instâncias de objetos

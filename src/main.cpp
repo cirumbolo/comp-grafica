@@ -227,6 +227,50 @@ float g_ForearmAngleX = 0.0f;
 float g_TorsoPositionX = 0.0f;
 float g_TorsoPositionY = 0.0f;
 
+// --- ESTRUTURAS E FUNÇÕES PARA A ZEBRA E BÉZIER ---
+struct ZebraData {
+    glm::vec4 p0, p1, p2, p3; // Pontos de controle da curva de Bézier
+    float t;                  // Parâmetro [0, 1]
+    float speed;              // Velocidade de deslocamento (incremento de t)
+    glm::vec4 current_pos;
+    float current_angle;      // Ângulo de rotação Y
+};
+
+// Função que calcula um ponto na Curva de Bézier Cúbica
+glm::vec4 BezierCubic(glm::vec4 p0, glm::vec4 p1, glm::vec4 p2, glm::vec4 p3, float t)
+{
+    float u = 1.0f - t;
+    float tt = t * t;
+    float uu = u * u;
+    float uuu = uu * u;
+    float ttt = tt * t;
+
+    glm::vec4 p = uuu * p0; // (1-t)^3 * P0
+    p += 3.0f * uu * t * p1; // 3 * (1-t)^2 * t * P1
+    p += 3.0f * u * tt * p2; // 3 * (1-t) * t^2 * P2
+    p += ttt * p3;           // t^3 * P3
+
+    return p;
+}
+
+// Função que calcula o vetor tangente (derivada) da Curva de Bézier Cúbica
+glm::vec4 BezierCubicDerivative(glm::vec4 p0, glm::vec4 p1, glm::vec4 p2, glm::vec4 p3, float t)
+{
+    float u = 1.0f - t;
+    float tt = t * t;
+    float uu = u * u;
+
+    glm::vec4 dp = 3.0f * uu * (p1 - p0);
+    dp += 6.0f * u * t * (p2 - p1);
+    dp += 3.0f * tt * (p3 - p2);
+
+    return dp;
+}
+
+// Vetor global de zebras no mapa
+std::vector<ZebraData> g_Zebras;
+// --------------------------------------------------
+
 // Variável que controla o tipo de projeção utilizada: perspectiva ou ortográfica.
 bool g_UsePerspectiveProjection = true;
 
@@ -345,6 +389,35 @@ int main(int argc, char* argv[])
     // Inicializamos o código para renderização de texto.
     TextRendering_Init();
 
+    // --- INICIALIZAÇÃO DAS ZEBRAS (BÉZIER) ---
+    ZebraData z1;
+    z1.p0 = glm::vec4(-10.0f, 0.0f, -10.0f, 1.0f);
+    z1.p1 = glm::vec4(-5.0f,  0.0f,  0.0f,  1.0f);
+    z1.p2 = glm::vec4( 5.0f,  0.0f,  0.0f,  1.0f);
+    z1.p3 = glm::vec4( 10.0f, 0.0f, -10.0f, 1.0f);
+    z1.t = 0.0f;
+    z1.speed = 0.1f;
+    g_Zebras.push_back(z1);
+
+    ZebraData z2;
+    z2.p0 = glm::vec4( 15.0f, 0.0f, -15.0f, 1.0f);
+    z2.p1 = glm::vec4( 10.0f, 0.0f,  5.0f,  1.0f);
+    z2.p2 = glm::vec4(-10.0f, 0.0f,  5.0f,  1.0f);
+    z2.p3 = glm::vec4(-15.0f, 0.0f, -15.0f, 1.0f);
+    z2.t = 0.2f;
+    z2.speed = 0.08f;
+    g_Zebras.push_back(z2);
+
+    ZebraData z3;
+    z3.p0 = glm::vec4( 0.0f,  0.0f, -20.0f, 1.0f);
+    z3.p1 = glm::vec4( 5.0f,  0.0f, -25.0f, 1.0f);
+    z3.p2 = glm::vec4( 5.0f,  0.0f, -30.0f, 1.0f);
+    z3.p3 = glm::vec4( 0.0f,  0.0f, -35.0f, 1.0f);
+    z3.t = 0.5f;
+    z3.speed = 0.15f;
+    g_Zebras.push_back(z3);
+    // -----------------------------------------
+
     // Habilitamos o Z-buffer. Veja slides 104-116 do documento Aula_09_Projecoes.pdf.
     glEnable(GL_DEPTH_TEST);
 
@@ -419,6 +492,31 @@ int main(int argc, char* argv[])
             if (g_APressed) g_CameraPosition -= u_xz * speed * deltaTime;
             if (g_DPressed) g_CameraPosition += u_xz * speed * deltaTime;
             
+            // --- LÓGICA DE COLISÃO COM SLIDING (DESLIZAMENTO) ---
+            glm::vec4 current_pos = g_CameraPosition;
+            glm::vec4 next_pos = current_pos;
+            
+            // Calculamos o deslocamento desejado total
+            glm::vec4 displacement = glm::vec4(0.0f);
+            if (g_WPressed) displacement -= w_xz * speed * deltaTime;
+            if (g_SPressed) displacement += w_xz * speed * deltaTime;
+            if (g_APressed) displacement -= u_xz * speed * deltaTime;
+            if (g_DPressed) displacement += u_xz * speed * deltaTime;
+
+            // Resetamos a posição para antes do movimento e testamos por eixos
+            g_CameraPosition -= displacement; 
+            
+            // Tenta mover no eixo X
+            glm::vec4 test_pos_x = g_CameraPosition + glm::vec4(displacement.x, 0.0f, 0.0f, 0.0f);
+            if (!CheckPlayerCollision(test_pos_x))
+                g_CameraPosition.x = test_pos_x.x;
+
+            // Tenta mover no eixo Z
+            glm::vec4 test_pos_z = g_CameraPosition + glm::vec4(0.0f, 0.0f, displacement.z, 0.0f);
+            if (!CheckPlayerCollision(test_pos_z))
+                g_CameraPosition.z = test_pos_z.z;
+            // ----------------------------------------------------
+            
             // Altura fixa em FPS (ex: 0.0f)
             g_CameraPosition.y = 0.0f;
 
@@ -445,7 +543,17 @@ int main(int argc, char* argv[])
         glm::mat4 projection;
         float nearplane = -0.1f;
         float farplane  = -100.0f; // Aumentado para ver o mapa
-        float field_of_view = 3.141592 / 3.0f;
+        
+        // Campo de visão (Field of View)
+        float field_of_view = 3.141592 / 3.0f; // FOV padrão
+        
+        // --- LÓGICA DE SCOPE (ZOOM) ---
+        if (g_RightMouseButtonPressed && g_CurrentGameState == PLAYING)
+        {
+            field_of_view = 3.141592 / 12.0f; // Zoom forte (FOV menor)
+        }
+        // ------------------------------
+        
         projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
 
         glm::mat4 model = Matrix_Identity();
@@ -459,13 +567,26 @@ int main(int argc, char* argv[])
         #define MAP    2
         #define BULLET 3
 
-        // Desenhamos a zebra
-        glm::vec4 zebra_pos = glm::vec4(-5.0f, 0.0f, -5.0f, 1.0f);
-        model = Matrix_Translate(zebra_pos.x, zebra_pos.y, zebra_pos.z)
-              * Matrix_Rotate_Y(3.14f/2.0f); // Virada de lado
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ZEBRA);
-        DrawVirtualObject("Zebra");
+        // Desenhamos as zebras
+        for (size_t i = 0; i < g_Zebras.size(); ++i)
+        {
+            ZebraData& zebra = g_Zebras[i];
+            
+            // Atualizamos t
+            zebra.t += zebra.speed * deltaTime;
+            if (zebra.t > 1.0f) zebra.t = 0.0f; // Reset do ciclo
+
+            // Calculamos posição e direção
+            zebra.current_pos = BezierCubic(zebra.p0, zebra.p1, zebra.p2, zebra.p3, zebra.t);
+            glm::vec4 tangent = BezierCubicDerivative(zebra.p0, zebra.p1, zebra.p2, zebra.p3, zebra.t);
+            zebra.current_angle = atan2(tangent.x, tangent.z);
+
+            model = Matrix_Translate(zebra.current_pos.x, zebra.current_pos.y, zebra.current_pos.z)
+                  * Matrix_Rotate_Y(zebra.current_angle);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ZEBRA);
+            DrawVirtualObject("Zebra");
+        }
 
         // Desenhamos o mapa (plano)
         model = Matrix_Translate(0.0f,-1.0f,0.0f) * Matrix_Scale(50.0f, 1.0f, 50.0f);
@@ -510,9 +631,31 @@ int main(int argc, char* argv[])
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
         // seria possível ver artefatos conhecidos como "screen tearing". A
-        // chamada abaixo faz a troca dos buffers, mostrando para o usuário
-        // tudo que foi renderizado pelas funções acima.
-        // Veja o link: https://en.wikipedia.org/w/index.php?title=Multiple_buffering&oldid=793452829#Double_buffering_in_computer_graphics
+
+        // --- RENDERIZAÇÃO DA UI (MIRA/SCOPE) ---
+        if (g_RightMouseButtonPressed && g_CurrentGameState == PLAYING)
+        {
+            glDisable(GL_DEPTH_TEST); // UI desenhada sobre tudo
+            
+            // Usaremos um shader de cor sólida ou o próprio shader com um ID especial para UI
+            // Para manter simples e sem criar novos buffers de VAO complexos agora, 
+            // vamos apenas usar o TextRendering para imprimir um "+" no centro
+            // ou desenhar algo simples se tivéssemos um shader de UI.
+            // Como temos suporte a texto, vamos desenhar uma mira textual centralizada.
+            
+            float lineheight = TextRendering_LineHeight(window);
+            float charwidth = TextRendering_CharWidth(window);
+            std::string crosshair = "O";
+            TextRendering_PrintString(window, crosshair, -charwidth/2.0f, lineheight/2.0f, 2.0f);
+            
+            // Desenhar bordas pretas simulando o scope
+            TextRendering_PrintString(window, "----------------------------------------------------------------", -1.0f, 0.8f, 1.0f);
+            TextRendering_PrintString(window, "----------------------------------------------------------------", -1.0f, -0.8f, 1.0f);
+
+            glEnable(GL_DEPTH_TEST);
+        }
+        // ---------------------------------------
+
         glfwSwapBuffers(window);
 
         // Verificamos com o sistema operacional se houve alguma interação do
@@ -1133,6 +1276,26 @@ bool RaySphereIntersection(glm::vec4 ray_origin, glm::vec4 ray_direction, glm::v
     return (discriminant > 0);
 }
 
+// Função para verificar colisão do jogador contra as zebras (Cilíndrica no plano XZ)
+bool CheckPlayerCollision(glm::vec4 next_pos)
+{
+    float player_radius = 0.5f;
+    float zebra_radius = 0.8f;
+    float min_dist = player_radius + zebra_radius;
+
+    for (const auto& zebra : g_Zebras)
+    {
+        // Calculamos a distância no plano XZ
+        float dx = next_pos.x - zebra.current_pos.x;
+        float dz = next_pos.z - zebra.current_pos.z;
+        float dist_squared = dx*dx + dz*dz;
+
+        if (dist_squared < min_dist * min_dist)
+            return true; // Colisão detectada
+    }
+    return false;
+}
+
 // Função callback chamada sempre que o usuário aperta algum dos botões do mouse
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
@@ -1140,17 +1303,31 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
     {
         if (g_CurrentGameState == PLAYING)
         {
-            // Lógica de Tiro
-            glm::vec4 zebra_pos = glm::vec4(-5.0f, 0.0f, -5.0f, 1.0f);
+            // Lógica de Tiro: Verificar intersecção com todas as zebras
             float zebra_radius = 1.0f; // Aproximação por esfera
+            float closest_dist = std::numeric_limits<float>::max();
+            int hit_index = -1;
 
-            if (RaySphereIntersection(g_CameraPosition, g_CameraViewVector, zebra_pos, zebra_radius))
+            for (size_t i = 0; i < g_Zebras.size(); ++i)
             {
-                // Acertou! Iniciar Bullet Cam
+                if (RaySphereIntersection(g_CameraPosition, g_CameraViewVector, g_Zebras[i].current_pos, zebra_radius))
+                {
+                    float dist = norm(g_Zebras[i].current_pos - g_CameraPosition);
+                    if (dist < closest_dist)
+                    {
+                        closest_dist = dist;
+                        hit_index = i;
+                    }
+                }
+            }
+
+            if (hit_index != -1)
+            {
+                // Acertou uma zebra! Iniciar Bullet Cam em direção a ela
                 g_CurrentGameState = BULLET_CAM;
                 g_BulletPosition = g_CameraPosition;
                 g_BulletDirection = g_CameraViewVector;
-                g_BulletTarget = zebra_pos;
+                g_BulletTarget = g_Zebras[hit_index].current_pos;
             }
         }
         
