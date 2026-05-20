@@ -46,6 +46,8 @@
 #include <stb_image.h>
 
 // Headers locais, definidos na pasta "include/"
+#include "core/Time.h"
+#include "input/InputState.h"
 #include "utils.h"
 #include "matrices.h"
 
@@ -173,6 +175,8 @@ struct SceneObject
 // objetos dentro da variável g_VirtualScene, e veja na função main() como
 // estes são acessados.
 std::map<std::string, SceneObject> g_VirtualScene;
+
+InputState g_InputState;
 
 // Pilha que guardará as matrizes de modelagem.
 std::stack<glm::mat4>  g_MatrixStack;
@@ -433,6 +437,10 @@ int main(int argc, char* argv[])
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
     {
+        glfwPollEvents();
+
+        GameTime::Update();
+
         // Aqui executamos as operações de renderização
 
         // Definimos a cor do "fundo" do framebuffer como branco.  Tal cor é
@@ -660,11 +668,7 @@ int main(int argc, char* argv[])
 
         glfwSwapBuffers(window);
 
-        // Verificamos com o sistema operacional se houve alguma interação do
-        // usuário (teclado, mouse, ...). Caso positivo, as funções de callback
-        // definidas anteriormente usando glfwSet*Callback() serão chamadas
-        // pela biblioteca GLFW.
-        glfwPollEvents();
+        g_InputState.ResetFrame();
     }
 
     // Finalizamos o uso dos recursos do sistema operacional
@@ -1301,6 +1305,8 @@ bool CheckPlayerCollision(glm::vec4 next_pos)
 // Função callback chamada sempre que o usuário aperta algum dos botões do mouse
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
+    g_InputState.SetMouseButton(button, action != GLFW_RELEASE);
+
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
     {
         if (g_CurrentGameState == PLAYING)
@@ -1355,6 +1361,8 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 // cima da janela OpenGL.
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
 {
+    g_InputState.SetCursorPosition(xpos, ypos);
+
     // Abaixo executamos o seguinte: caso o botão esquerdo do mouse esteja
     // pressionado, computamos quanto que o mouse se movimento desde o último
     // instante de tempo, e usamos esta movimentação para atualizar os
@@ -1423,6 +1431,8 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
 // Função callback chamada sempre que o usuário movimenta a "rodinha" do mouse.
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
+    g_InputState.SetScrollOffset(xoffset, yoffset);
+
     // Atualizamos a distância da câmera para a origem utilizando a
     // movimentação da "rodinha", simulando um ZOOM.
     g_CameraDistance -= 0.1f*yoffset;
@@ -1443,6 +1453,8 @@ void Correcao_KeyCallback(int key, int action, int mod);
 // tecla do teclado. Veja http://www.glfw.org/docs/latest/input_guide.html#input_key
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
 {
+    g_InputState.SetKey(key, action != GLFW_RELEASE);
+
     // =======================
     // Não modifique esta chamada! Ela é utilizada para correção automatizada dos
     // laboratórios. Deve ser sempre o primeiro comando desta função KeyCallback().
@@ -1531,7 +1543,6 @@ void TextRendering_ShowModelViewProjection(
         0.0f , 0.0f , 1.0f , 0.0f ,
         0.0f , 0.0f , 0.0f , 1.0f
     );
-
     TextRendering_PrintString(window, "                                                       |  ", -1.0f, 1.0f-22*pad, 1.0f);
     TextRendering_PrintString(window, "                            .--------------------------'  ", -1.0f, 1.0f-23*pad, 1.0f);
     TextRendering_PrintString(window, "                            V                           ", -1.0f, 1.0f-24*pad, 1.0f);
